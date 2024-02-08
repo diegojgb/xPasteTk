@@ -23,7 +23,8 @@ DEFAULT_SETTINGS = {'start_minimized': 'False',
                     'custom_hotkey_enabled': 'False',
                     'custom_hotkey': 'CTRL+V',
                     'listening': 'True',
-                    'close_button_enabled': 'False'
+                    'close_button_enabled': 'False',
+                    'minimize_tray_enabled': 'False'
                     }
 
 class App(customtkinter.CTk):
@@ -32,12 +33,11 @@ class App(customtkinter.CTk):
 
         # Initial configurations
         self.title("xPaste")
-        self.geometry("700x375")
+        self.geometry("710x390")
         self.resizable(False, False)
         self.style = ttk.Style()
         self.settings = Settings(DEFAULT_SETTINGS)
         self.paster = Paster(self.settings.get('custom_hotkey'))
-        # self.load_settings()
 
         def remove_focus(event):
             try:
@@ -51,7 +51,6 @@ class App(customtkinter.CTk):
         self.icon = DoubleClickIcon('xpaste_icon', 'xPaste', show=self.show_window, quit=self.quit_app, one_click=self.settings.get('one_click_open'),
                                     on_double_click=lambda: self.after(0, self.deiconify), image_path="assets/xpaste_logo.ico")
         self.icon_thread = threading.Thread(daemon=True, target=lambda: self.icon.run()).start()
-        self.protocol('WM_DELETE_WINDOW', self.withdraw)
 
         # set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
@@ -116,9 +115,12 @@ class App(customtkinter.CTk):
         self.checkbox5 = Checkbox(self.settings_frame, text='Close button exits the application.', command=self.close_button_changed,
                                   initial_value=self.settings.get('close_button_enabled'))
         self.checkbox5.grid(row=4, column=0, columnspan=5, pady=(1, 0), padx=37, sticky='w')
+        self.checkbox6 = Checkbox(self.settings_frame, text='Minimize to the system tray.', command=self.minimize_tray_changed,
+                                  initial_value=self.settings.get('minimize_tray_enabled'))
+        self.checkbox6.grid(row=5, column=0, columnspan=5, pady=(1, 0), padx=37, sticky='w')
 
         # Clipboard hook settings
-        self.app_settings_label = LabelSeparator(self.settings_frame, 'Clipboard hook settings').grid(row=5, column=0, columnspan=3, padx=(24, 33), pady=(15, 0), sticky="ews")
+        self.app_settings_label = LabelSeparator(self.settings_frame, 'Clipboard hook settings').grid(row=6, column=0, columnspan=3, padx=(24, 33), pady=(15, 0), sticky="ews")
 
         self.time_frame = customtkinter.CTkFrame(self.settings_frame, fg_color='transparent')
         self.checkbox3 = Checkbox(self.time_frame, text='Automatically disable the hook after', command=self.time_checkbox_changed,
@@ -127,7 +129,7 @@ class App(customtkinter.CTk):
         self.time_spinbox = TimeSpinbox(self.time_frame, command=self.time_spinbox_changed,
                                         initial_state='normal' if self.settings.get('hook_time_enabled') else 'disabled')
         self.time_spinbox.grid(row=0, column=1, padx=3)
-        self.time_frame.grid(row=6, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
+        self.time_frame.grid(row=7, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
 
         self.hotkey_frame = customtkinter.CTkFrame(self.settings_frame, fg_color='transparent')
         self.checkbox4 = Checkbox(self.hotkey_frame, text='Setup a custom paste hotkey', command=self.hotkey_checkbox_changed,
@@ -136,7 +138,7 @@ class App(customtkinter.CTk):
         self.hotkey_recorder = HotkeyRecorder(self.hotkey_frame, text=self.paster.get_hotkey(), width=20, command=self.paster.set_hotkey,
                                               initial_state='normal' if self.settings.get('custom_hotkey_enabled') else 'disabled')
         self.hotkey_recorder.grid(row=0, column=1, padx=3, ipady=2.2)
-        self.hotkey_frame.grid(row=7, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
+        self.hotkey_frame.grid(row=8, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
 
 
         # ABOUT FRAME
@@ -170,6 +172,8 @@ class App(customtkinter.CTk):
         self.tk.call("source", "azure-ttk/azure.tcl")
         self.change_colors(customtkinter.get_appearance_mode())
         self.style.configure("TEntry", background="gray")
+        self.protocol("WM_DELETE_WINDOW", self.close_button_action)
+        self.bind("<Unmap>", self.minimize_button_action)
         self.load_settings()
 
 
@@ -195,10 +199,22 @@ class App(customtkinter.CTk):
         self.icon.set_one_click(self.checkbox2.is_checked())
         self.settings.set('one_click_open', self.checkbox2.is_checked())
 
-    def close_button_changed(self):
+    def close_button_action(self):
         if self.checkbox5.is_checked():
-            self.protocol("WM_DELETE_WINDOW", lambda: self.quit_app(self.icon))
+            self.quit_app(self.icon)
+        else:
+            self.withdraw()
+
+    def close_button_changed(self):
         self.settings.set('close_button_enabled', self.checkbox5.is_checked())
+
+    def minimize_button_action(self, event):
+        if self.state() == 'iconic':
+            if self.checkbox6.is_checked():
+                self.withdraw()
+
+    def minimize_tray_changed(self):
+        self.settings.set('minimize_tray_enabled', self.checkbox6.is_checked())
 
     def time_checkbox_changed(self):
         self.settings.set('hook_time_enabled', self.checkbox3.is_checked())
@@ -218,9 +234,6 @@ class App(customtkinter.CTk):
     def time_spinbox_changed(self):
         new_time = self.time_spinbox.get()
         self.settings.set('hook_time', new_time)
-
-    def home_button_event(self):
-        self.select_frame_by_name("home")
 
     def settings_button_event(self):
         self.select_frame_by_name("settings")
@@ -262,8 +275,6 @@ class App(customtkinter.CTk):
             self.paster.listen()
         if self.settings.get('start_minimized'):
             self.withdraw()
-        if self.settings.get('close_button_enabled'):
-            self.protocol("WM_DELETE_WINDOW", lambda: self.quit_app(self.icon))
 
     def switch_status(self, e):
         if self.paster.is_listening:
