@@ -1,0 +1,3 @@
+DARK_BG = '#242424'
+LIGHT_BG = '#ebebeb'
+WIDGET_BG = '#333'
