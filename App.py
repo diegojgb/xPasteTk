@@ -3,6 +3,12 @@ import threading
 import tkinter as tk
 import customtkinter
 import darkdetect
+import keyboard
+import winsdk.windows.ui.notifications as notifications
+import winsdk.windows.data.xml.dom as dom
+import sys
+
+from win10toast import ToastNotifier
 from DoubleClickIcon import DoubleClickIcon
 from Paster import Paster
 from Settings import Settings
@@ -14,6 +20,9 @@ from widgets.CustomCombobox import CustomCombobox
 from widgets.HotkeyRecorder import HotkeyRecorder
 from widgets.LabelSeparator import LabelSeparator
 from widgets.TimeSpinbox import TimeSpinbox
+from notifypy import Notify
+from plyer import notification
+
 
 
 DEFAULT_SETTINGS = {'start_minimized': 'False',
@@ -21,11 +30,16 @@ DEFAULT_SETTINGS = {'start_minimized': 'False',
                     'hook_time': '00:00:00',
                     'hook_time_enabled': 'False',
                     'custom_hotkey_enabled': 'False',
-                    'custom_hotkey': 'CTRL+V',
+                    'custom_hotkey': 'CTRL+D',
                     'listening': 'True',
                     'close_button_enabled': 'False',
-                    'minimize_tray_enabled': 'False'
+                    'minimize_tray_enabled': 'False',
+                    'toggle_hotkey_enabled': 'False',
+                    'toggle_hotkey': '<not set>',
+                    'disable_toast': 'False'
                     }
+DEFAULT_HOTKEY = 'CTRL+V'
+
 
 class App(customtkinter.CTk):
     def __init__(self):
@@ -33,11 +47,15 @@ class App(customtkinter.CTk):
 
         # Initial configurations
         self.title("xPaste")
-        self.geometry("710x390")
+        self.geometry("700x445")
         self.resizable(False, False)
         self.style = ttk.Style()
         self.settings = Settings(DEFAULT_SETTINGS)
-        self.paster = Paster(self.settings.get('custom_hotkey'))
+        self.paster = Paster(self.settings.get('custom_hotkey') if self.settings.get('custom_hotkey_enabled') else DEFAULT_HOTKEY)
+        self.on_notification = Notify('xPaste - ON', 'Clipboard hook has been activated.', 'xPaste - Clipboard hook', default_notification_icon='assets/xpaste_logo.png')
+        self.off_notification = Notify('xPaste - OFF', 'Clipboard hook has been deactivated.', 'xPaste - Clipboard hook', default_notification_icon='assets/xpaste_logo.png')
+        self.on_notification.icon = 'assets/xpaste_logo.png'
+        self.toast = ToastNotifier()
 
         def remove_focus(event):
             try:
@@ -61,8 +79,6 @@ class App(customtkinter.CTk):
         self.on_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "on_switch.png")), size=(110, 45))
         self.off_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "off_switch.png")), size=(110, 45))
         self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "xpaste_logo.png")), size=(54, 54))
-        self.home_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "home_dark.png")),
-                                                 dark_image=Image.open(os.path.join(image_path, "home_light.png")), size=(24, 24))
         self.settings_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "settings_dark.png")),
                                                  dark_image=Image.open(os.path.join(image_path, "settings_light.png")), size=(24, 24))
         self.about_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "about_dark.png")),
@@ -132,13 +148,26 @@ class App(customtkinter.CTk):
         self.time_frame.grid(row=7, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
 
         self.hotkey_frame = customtkinter.CTkFrame(self.settings_frame, fg_color='transparent')
-        self.checkbox4 = Checkbox(self.hotkey_frame, text='Setup a custom paste hotkey', command=self.hotkey_checkbox_changed,
+        self.checkbox4 = Checkbox(self.hotkey_frame, text='Setup a custom paste hotkey', command=self.custom_hotkey_checkbox_changed,
                                   initial_value=self.settings.get('custom_hotkey_enabled'))
         self.checkbox4.grid(row=0, column=0)
-        self.hotkey_recorder = HotkeyRecorder(self.hotkey_frame, text=self.paster.get_hotkey(), width=20, command=self.paster.set_hotkey,
+        self.custom_hotkey_recorder = HotkeyRecorder(self.hotkey_frame, text=self.paster.get_hotkey(), width=20, command=self.set_custom_hotkey,
                                               initial_state='normal' if self.settings.get('custom_hotkey_enabled') else 'disabled')
-        self.hotkey_recorder.grid(row=0, column=1, padx=3, ipady=2.2)
+        self.custom_hotkey_recorder.grid(row=0, column=1, padx=3, ipady=2.2)
         self.hotkey_frame.grid(row=8, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
+
+        self.toggle_hotkey_frame = customtkinter.CTkFrame(self.settings_frame, fg_color='transparent')
+        self.toggle_hotkey_checkbox = Checkbox(self.toggle_hotkey_frame, text='Setup a hotkey for toggling the hook', command=self.toggle_hotkey_checkbox_changed,
+                                  initial_value=self.settings.get('toggle_hotkey_enabled'))
+        self.toggle_hotkey_checkbox.grid(row=0, column=0)
+        self.toggle_hotkey_recorder = HotkeyRecorder(self.toggle_hotkey_frame, text=self.settings.get('toggle_hotkey'), width=20, command=self.update_toggle_hotkey,
+                                              initial_state='normal' if self.settings.get('toggle_hotkey_enabled') else 'disabled')
+        self.toggle_hotkey_recorder.grid(row=0, column=1, padx=3, ipady=2.2)
+        self.toggle_hotkey_frame.grid(row=9, column=0, columnspan=5, pady=(5, 0), padx=37, sticky='w')
+
+        self.toast_checkbox = Checkbox(self.settings_frame, text='Disable desktop notifications.', command=self.toast_checkbox_changed,
+                                  initial_value=self.settings.get('disable_toast'), state='disabled')
+        self.toast_checkbox.grid(row=10, column=0, columnspan=5, pady=(4, 0), padx=65, sticky='w')
 
 
         # ABOUT FRAME
@@ -178,11 +207,9 @@ class App(customtkinter.CTk):
 
 
     def select_frame_by_name(self, name):
-        # set button color for selected button
         self.settings_button.configure(fg_color=("gray75", "gray25") if name == "settings" else "transparent")
         self.about_button.configure(fg_color=("gray75", "gray25") if name == "about" else "transparent")
 
-        # show selected frame
         if name == "settings":
             self.settings_frame.grid(row=0, column=1, sticky="nsew")
         else:
@@ -223,13 +250,46 @@ class App(customtkinter.CTk):
         else:
             self.time_spinbox.set_state('disabled')
 
-    def hotkey_checkbox_changed(self):
+    def custom_hotkey_checkbox_changed(self):
         self.settings.set('custom_hotkey_enabled', self.checkbox4.is_checked())
         if self.checkbox4.is_checked():
-            self.hotkey_recorder.set_state('normal')
+            self.custom_hotkey_recorder.set_state('normal')
+            self.paster.set_hotkey(self.settings.get('custom_hotkey'))
         else:
-            self.hotkey_recorder.set_state('disabled')
-            self.paster.set_hotkey('CTRL+V')
+            self.custom_hotkey_recorder.set_state('disabled')
+            self.paster.set_hotkey(DEFAULT_HOTKEY)
+
+    def set_custom_hotkey(self, new_hotkey):
+        self.settings.set('custom_hotkey', new_hotkey)
+        self.paster.set_hotkey(new_hotkey)
+
+    def toggle_hotkey_checkbox_changed(self):
+        self.settings.set('toggle_hotkey_enabled', self.toggle_hotkey_checkbox.is_checked())
+        if self.toggle_hotkey_checkbox.is_checked():
+            self.toast_checkbox.configure(state='normal')
+            self.toggle_hotkey_recorder.set_state('normal')
+            self.set_toggle_hotkey()
+        else:
+            self.toggle_hotkey_recorder.set_state('disabled')
+            self.toast_checkbox.configure(state='disabled')
+            self.unset_toggle_hotkey()
+
+    def toast_checkbox_changed(self):
+        self.settings.set('disable_toast', self.toast_checkbox.is_checked())
+
+    def set_toggle_hotkey(self):
+        hotkey = self.settings.get('toggle_hotkey')
+        if hotkey != '<not set>':
+            keyboard.add_hotkey(hotkey, lambda: self.switch_status(toast=True))
+
+    def update_toggle_hotkey(self, new_hotkey):
+        self.settings.set('toggle_hotkey', new_hotkey)
+        self.set_toggle_hotkey()
+
+    def unset_toggle_hotkey(self):
+        hotkey = self.settings.get('toggle_hotkey')
+        if hotkey != '<not set>':
+            keyboard.remove_hotkey(hotkey)
 
     def time_spinbox_changed(self):
         new_time = self.time_spinbox.get()
@@ -275,16 +335,23 @@ class App(customtkinter.CTk):
             self.paster.listen()
         if self.settings.get('start_minimized'):
             self.withdraw()
+        if self.settings.get('toggle_hotkey_enabled'):
+            hotkey = self.settings.get('toggle_hotkey')
+            if hotkey != '<not set>':
+                keyboard.add_hotkey(hotkey, lambda: self.switch_status(toast=True))
 
-    def switch_status(self, e):
+    def switch_status(self, e=None, toast=False):
+        disable_toast = self.settings.get('disable_toast')
         if self.paster.is_listening:
             self.navigation_frame_label.configure(image=self.off_switch)
             self.paster.stop_listening()
             self.settings.set('listening', False)
+            if toast and not disable_toast: self.display_toast('Hook OFF', 'Clipboard hook has been deactivated.')
         else:
             self.navigation_frame_label.configure(image=self.on_switch)
             self.paster.listen()
             self.settings.set('listening', True)
+            if toast and not disable_toast: self.display_toast('Hook ON', 'Clipboard hook has been activated.')
 
     def quit_app(self, icon):
         icon.stop()
@@ -293,6 +360,30 @@ class App(customtkinter.CTk):
 
     def show_window(self, icon):
         self.after(0, self.deiconify)
+
+    def display_toast(self, title, content):
+        nManager = notifications.ToastNotificationManager
+        notifier = nManager.create_toast_notifier(sys.executable)
+
+        logo_path = os.path.join(os.path.dirname(__file__), "assets/xpaste_logo.png")
+
+        tString = f"""
+        <toast>
+            <visual>
+                <binding template='ToastGeneric'>
+                    <image placement="appLogoOverride" hint-crop="circle" src='{logo_path}'/>
+                    <text>{title}</text>
+                    <text>{content}</text>
+                </binding>
+            </visual>
+        </toast>
+        """
+
+        xDoc = dom.XmlDocument()
+        xDoc.load_xml(tString)
+        notification = notifications.ToastNotification(xDoc)
+
+        notifier.show(notification)
 
 
 if __name__ == "__main__":

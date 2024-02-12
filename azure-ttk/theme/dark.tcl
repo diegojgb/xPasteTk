@@ -281,12 +281,16 @@ namespace eval ttk::theme::azure-dark {
 
         # Checkbutton
         ttk::style configure TCheckbutton -padding 4
+        ttk::style configure TCheckbutton -disabledbackground $colors(-sidebarbg)
+
+        ttk::style map TCheckbutton -foreground \
+            [list disabled $colors(-disabledfg)]
 
         ttk::style element create Checkbutton.indicator image \
             [list $I(box-basic) \
                 {alternate disabled} $I(check-tri-basic) \
                 {selected disabled} $I(check-basic) \
-                disabled $I(box-basic) \
+                disabled $I(box-disabled) \
                 {pressed alternate} $I(check-tri-hover) \
                 {active alternate} $I(check-tri-hover) \
                 alternate $I(check-tri-accent) \
