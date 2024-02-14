@@ -1,7 +1,6 @@
 import customtkinter
-import darkdetect
-import tkinter as tk
 import keyboard
+import tkinter as tk
 
 
 class HotkeyRecorder(tk.Entry):

@@ -1,5 +1,4 @@
 import customtkinter
-import darkdetect
 import tkinter as tk
 
 class LabelSeparator(customtkinter.CTkFrame):

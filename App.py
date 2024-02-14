@@ -1,43 +1,21 @@
-import os
-import threading
 import customtkinter
 import darkdetect
 import keyboard
-import winsdk.windows.ui.notifications as notifications
-import winsdk.windows.data.xml.dom as dom
-import sys
+import os
+import threading
 
 from DoubleClickIcon import DoubleClickIcon
+from PIL import Image
 from Paster import Paster
 from Settings import Settings
-from PIL import Image
-from tkinter import ttk
-from widgets.Countdown import Countdown
+from constants import *
+from pyinstaller_utils import resource_path
 from widgets.Checkbox import Checkbox
+from widgets.Countdown import Countdown
 from widgets.CustomCombobox import CustomCombobox
 from widgets.HotkeyRecorder import HotkeyRecorder
 from widgets.LabelSeparator import LabelSeparator
 from widgets.TimeSpinbox import TimeSpinbox
-from pyinstaller_utils import resource_path
-
-
-DEFAULT_SETTINGS = {'start_minimized': 'False',
-                    'one_click_open': 'False',
-                    'hook_time': '00:00:00',
-                    'hook_time_enabled': 'False',
-                    'custom_hotkey_enabled': 'False',
-                    'custom_hotkey': 'CTRL+D',
-                    'listening': 'True',
-                    'close_button_enabled': 'False',
-                    'minimize_tray_enabled': 'False',
-                    'toggle_hotkey_enabled': 'False',
-                    'toggle_hotkey': '<not set>',
-                    'disable_toast': 'False',
-                    'disable_timer_toast': 'False',
-                    'theme': 'System'
-                    }
-DEFAULT_HOTKEY = 'CTRL+V'
-SWITCH_BG = {'Dark': '#333', 'Light': '#e4e4e4'}
 
 
 class App(customtkinter.CTk):
@@ -66,16 +44,17 @@ class App(customtkinter.CTk):
 
         self.bind_all("<1>", remove_focus) # Widgets lose focus when clicked anywhere else.
 
-        # TRAY ICON RELATED
+
+        # Tray icon related
         self.icon = DoubleClickIcon('xpaste_icon', 'xPaste', show=self.show_window, quit=self.quit_app, one_click=self.settings.get('one_click_open'),
                                     on_double_click=lambda: self.after(0, self.deiconify), image_path=resource_path("assets/xpaste_logo.ico"))
         self.icon_thread = threading.Thread(daemon=True, target=lambda: self.icon.run()).start()
 
-        # set grid layout 1x2
+        # Set grid layout 1x2
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        # load images with light and dark mode image
+        # Load images with light and dark mode image
         image_path = resource_path("assets")
         self.on_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "on_switch.png")), size=(110, 45))
         self.off_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "off_switch.png")), size=(110, 45))
@@ -225,6 +204,7 @@ class App(customtkinter.CTk):
         self.bind("<FocusOut>", on_focus_out)
         self.bind("<FocusIn>", on_focus_in)
 
+
     def select_frame_by_name(self, name):
         self.settings_button.configure(fg_color=("gray75", "gray25") if name == "settings" else "transparent")
         self.about_button.configure(fg_color=("gray75", "gray25") if name == "about" else "transparent")
@@ -315,7 +295,7 @@ class App(customtkinter.CTk):
     def set_toggle_hotkey(self):
         hotkey = self.settings.get('toggle_hotkey')
         if hotkey != '<not set>':
-            keyboard.add_hotkey(hotkey, lambda: self.switch_status(toast=True))
+            keyboard.add_hotkey(hotkey, lambda: self.switch_status(toast=True), suppress=False)
 
     def update_toggle_hotkey(self, new_hotkey):
         self.unset_toggle_hotkey()
@@ -429,27 +409,3 @@ class App(customtkinter.CTk):
 
     def show_window(self, icon):
         self.after(0, self.deiconify)
-
-    def display_toast(self, title, content):
-        nManager = notifications.ToastNotificationManager
-        notifier = nManager.create_toast_notifier(sys.executable)
-
-        logo_path = os.path.join(os.path.dirname(__file__), "assets/xpaste_logo.png")
-
-        tString = f"""
-        <toast>
-            <visual>
-                <binding template='ToastGeneric'>
-                    <image placement="appLogoOverride" hint-crop="circle" src='{logo_path}'/>
-                    <text>{title}</text>
-                    <text>{content}</text>
-                </binding>
-            </visual>
-        </toast>
-        """
-
-        xDoc = dom.XmlDocument()
-        xDoc.load_xml(tString)
-        notification = notifications.ToastNotification(xDoc)
-
-        notifier.show(notification)

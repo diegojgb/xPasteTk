@@ -1,5 +1,7 @@
 import tkinter as tk
+
 from tkinter import ttk
+
 
 class Checkbox(ttk.Checkbutton):
     def __init__(self, master, initial_value=False, *args, **kwargs):

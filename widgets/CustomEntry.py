@@ -1,8 +1,9 @@
-from tkinter import ttk
 import tkinter as tk
 
-# From stackoverflow (https://stackoverflow.com/questions/17635905/ttk-entry-background-colour)
+from tkinter import ttk
 
+
+# From stackoverflow (https://stackoverflow.com/questions/17635905/ttk-entry-background-colour)
 class CustomEntry(ttk.Entry):
     def __init__(self, root, *args, bordercolor, borderthickness=1,
                  background='white', foreground='black', **kwargs):
