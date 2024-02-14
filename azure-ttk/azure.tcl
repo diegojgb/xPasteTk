@@ -57,6 +57,7 @@ proc set_theme {mode} {
             -disabledbg     "#ffffff"
             -selectfg       "#ffffff"
             -selectbg       "#007fff"
+            -sidebarbg      "#2b2b2b"
         }
 
 		ttk::style configure . \
