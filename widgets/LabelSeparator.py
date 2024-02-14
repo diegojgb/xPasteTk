@@ -22,9 +22,9 @@ class LabelSeparator(customtkinter.CTkFrame):
     @staticmethod
     def get_color(mode):
         if mode == 'Light':
-            return 'black'
+            return '#a0a0a0'
         elif mode == 'Dark':
-            return 'white'
+            return '#777'
 
     @classmethod
     def set_color_for_all(cls, new_appearance_mode):
