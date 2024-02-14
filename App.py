@@ -1,6 +1,5 @@
 import os
 import threading
-import tkinter as tk
 import customtkinter
 import darkdetect
 import keyboard
@@ -8,11 +7,9 @@ import winsdk.windows.ui.notifications as notifications
 import winsdk.windows.data.xml.dom as dom
 import sys
 
-from win10toast import ToastNotifier
 from DoubleClickIcon import DoubleClickIcon
 from Paster import Paster
 from Settings import Settings
-
 from PIL import Image
 from tkinter import ttk
 from widgets.Countdown import Countdown
@@ -21,8 +18,7 @@ from widgets.CustomCombobox import CustomCombobox
 from widgets.HotkeyRecorder import HotkeyRecorder
 from widgets.LabelSeparator import LabelSeparator
 from widgets.TimeSpinbox import TimeSpinbox
-from notifypy import Notify
-from plyer import notification
+from pyinstaller_utils import resource_path
 
 
 DEFAULT_SETTINGS = {'start_minimized': 'False',
@@ -56,14 +52,9 @@ class App(customtkinter.CTk):
         self.current_frame = None
         self.bind("<Unmap>", self.minimize_window_action)
         self.bind('<Map>', self.restore_window_action)
-        self.style = ttk.Style()
         self.settings = Settings(DEFAULT_SETTINGS)
         customtkinter.set_appearance_mode(self.settings.get('theme'))
         self.paster = Paster(self.settings.get('custom_hotkey') if self.settings.get('custom_hotkey_enabled') else DEFAULT_HOTKEY)
-        self.on_notification = Notify('xPaste - ON', 'Clipboard hook has been activated.', 'xPaste - Clipboard hook', default_notification_icon='assets/xpaste_logo.png')
-        self.off_notification = Notify('xPaste - OFF', 'Clipboard hook has been deactivated.', 'xPaste - Clipboard hook', default_notification_icon='assets/xpaste_logo.png')
-        self.on_notification.icon = 'assets/xpaste_logo.png'
-        self.toast = ToastNotifier()
         self.countdown = Countdown(self, self.to_seconds(self.settings.get('hook_time')),
                                    title='xPaste - ', command=lambda: self.switch_status(countdown=True))
 
@@ -77,7 +68,7 @@ class App(customtkinter.CTk):
 
         # TRAY ICON RELATED
         self.icon = DoubleClickIcon('xpaste_icon', 'xPaste', show=self.show_window, quit=self.quit_app, one_click=self.settings.get('one_click_open'),
-                                    on_double_click=lambda: self.after(0, self.deiconify), image_path="assets/xpaste_logo.ico")
+                                    on_double_click=lambda: self.after(0, self.deiconify), image_path=resource_path("assets/xpaste_logo.ico"))
         self.icon_thread = threading.Thread(daemon=True, target=lambda: self.icon.run()).start()
 
         # set grid layout 1x2
@@ -85,7 +76,7 @@ class App(customtkinter.CTk):
         self.grid_columnconfigure(1, weight=1)
 
         # load images with light and dark mode image
-        image_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets")
+        image_path = resource_path("assets")
         self.on_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "on_switch.png")), size=(110, 45))
         self.off_switch = customtkinter.CTkImage(Image.open(os.path.join(image_path, "off_switch.png")), size=(110, 45))
         self.logo_image = customtkinter.CTkImage(Image.open(os.path.join(image_path, "xpaste_logo.png")), size=(54, 54))
@@ -94,12 +85,6 @@ class App(customtkinter.CTk):
         self.about_image = customtkinter.CTkImage(light_image=Image.open(os.path.join(image_path, "about_dark.png")),
                                                      dark_image=Image.open(os.path.join(image_path, "about_light.png")), size=(24, 24))
 
-        # Pre-load frames:
-        # self.navigation_frame_preload = tk.Frame(self)
-        # self.navigation_frame_preload.grid(row=0, column=0, sticky="nsew")
-
-        # self.settings_frame_preload = tk.Frame(self)
-        # self.settings_frame_preload.grid(row=0, column=1, sticky="nsew")
 
         # NAVIGATION FRAME
         self.navigation_frame = customtkinter.CTkFrame(self, corner_radius=0)
@@ -220,9 +205,8 @@ class App(customtkinter.CTk):
 
         # Final configurations
         self.select_frame_by_name("settings") # Default Frame
-        self.tk.call("source", "azure-ttk/azure.tcl")
+        self.tk.call("source", resource_path("azure-ttk/azure.tcl"))
         self.change_colors(customtkinter.get_appearance_mode())
-        self.style.configure("TEntry", background="gray")
         self.protocol("WM_DELETE_WINDOW", self.close_button_action)
         self.load_settings()
 
@@ -425,8 +409,10 @@ class App(customtkinter.CTk):
             self.settings.set('listening', False)
             if not countdown and self.countdown.is_running():
                 self.countdown.stop()
-            if toast and not disable_toast or countdown and not disable_timer_toast:
-                self.display_toast('Hook OFF', 'Clipboard hook has been deactivated.')
+            if toast and not disable_toast:
+                self.icon.notify('Hook OFF', 'Clipboard hook has been deactivated.')
+            if countdown and not disable_timer_toast:
+                self.icon.notify("Time's up!", 'Clipboard hook has been deactivated.')
         else:
             self.navigation_frame_label.configure(image=self.on_switch)
             self.paster.listen()
@@ -434,7 +420,7 @@ class App(customtkinter.CTk):
             if self.settings.get('hook_time_enabled'):
                 self.countdown.start()
             if toast and not disable_toast:
-                self.display_toast('Hook ON', 'Clipboard hook has been activated.')
+                self.icon.notify('Hook ON', 'Clipboard hook has been activated.')
 
     def quit_app(self, icon):
         icon.stop()
