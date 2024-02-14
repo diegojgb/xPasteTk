@@ -53,6 +53,7 @@ class App(customtkinter.CTk):
         self.geometry("700x475")
         self.resizable(False, False)
         self.prev_state = 'iconic'
+        self.current_frame = None
         self.bind("<Unmap>", self.minimize_window_action)
         self.bind('<Map>', self.restore_window_action)
         self.style = ttk.Style()
@@ -246,10 +247,12 @@ class App(customtkinter.CTk):
 
         if name == "settings":
             self.settings_frame.grid(row=0, column=1, sticky="nsew")
+            self.current_frame = self.settings_frame
         else:
             self.settings_frame.grid_forget()
         if name == "about":
             self.about_frame.grid(row=0, column=1, sticky="nsew")
+            self.current_frame = self.about_frame
         else:
             self.about_frame.grid_forget()
 
@@ -265,18 +268,19 @@ class App(customtkinter.CTk):
             self.quit_app(self.icon)
         else:
             self.withdraw()
+            self.current_frame.grid_forget()
 
     def close_button_changed(self):
         self.settings.set('close_button_enabled', self.checkbox5.is_checked())
 
     def restore_window_action(self, event):
-        if self.prev_state == 'iconic':
-            self.settings_frame.grid(row=0, column=1, sticky="nsew")
+        if self.prev_state in ('iconic', 'withdrawn'):
+            self.current_frame.grid(row=0, column=1, sticky="nsew")
         self.prev_state = self.state()
 
     def minimize_window_action(self, event):
         if self.state() == 'iconic' and self.prev_state == 'normal':
-            self.settings_frame.grid_forget()
+            self.current_frame.grid_forget()
             if self.checkbox6.is_checked():
                 self.withdraw()
         self.prev_state = self.state()
@@ -345,8 +349,11 @@ class App(customtkinter.CTk):
         self.time_spinbox.focusin_value = new_time
         self.countdown.duration = self.to_seconds(new_time)
 
-        if self.paster.is_listening and self.countdown.is_running():
-            self.countdown.restart()
+        if self.paster.is_listening:
+            if self.countdown.is_running():
+                self.countdown.restart()
+            else:
+                self.countdown.start()
 
     def to_seconds(self, time_str):
         try:

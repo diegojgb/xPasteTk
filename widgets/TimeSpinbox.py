@@ -14,9 +14,10 @@ class TimeSpinbox(ttk.Spinbox):
         TimeSpinbox.colors = TimeSpinbox.get_colors(customtkinter.get_appearance_mode())
         foreground_color = self.get_color(initial_state)
         self.state_value = initial_state
+        self.focusin_value = None
 
-        super().__init__(master, width=15, values=self.time_values(), textvariable=self.var,
-                         wrap=True, foreground=foreground_color, state=initial_state, *args, **kwargs)
+        super().__init__(master, width=15, values=self.time_values(), textvariable=self.var, validate='focusout', foreground=foreground_color,
+                         validatecommand=(master.register(self.is_valid), '%P'), wrap=True , state=initial_state, *args, **kwargs)
 
     # Method created with ChatGPT
     def time_values(self):
@@ -36,6 +37,13 @@ class TimeSpinbox(ttk.Spinbox):
 
         return times
 
+    def reformat(self):
+        if any(len(x) != 2 for x in self.get().split(':')):
+            hours, minutes, seconds = map(int, self.get().split(':'))
+            formatted_time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+            self.set(formatted_time)
+        return self.get()
+
     def set_state(self, state):
         if self.state_value != state:
             self.state_value = state
@@ -47,6 +55,14 @@ class TimeSpinbox(ttk.Spinbox):
 
     def get_color(self, state):
         return TimeSpinbox.colors[0] if state == 'normal' else TimeSpinbox.colors[1]
+
+    @staticmethod
+    def is_valid(value):
+        try:
+            hours, minutes, seconds = map(int, value.split(':'))
+            return hours < 24 and minutes < 60 and seconds < 60
+        except:
+            return False
 
     @staticmethod
     # Reference: (<normal foreground>, <disabled foreground>)
