@@ -3,6 +3,7 @@ import darkdetect
 import keyboard
 import os
 import threading
+from tkinter import font
 
 from DoubleClickIcon import DoubleClickIcon
 from PIL import Image

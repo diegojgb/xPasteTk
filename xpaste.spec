@@ -3,8 +3,6 @@
 added_files = [
         ('assets/about_dark.png', 'assets'),
         ('assets/about_light.png', 'assets'),
-        ('assets/home_dark.png', 'assets'),
-        ('assets/home_light.png', 'assets'),
         ('assets/off_switch.png', 'assets'),
         ('assets/on_switch.png', 'assets'),
         ('assets/settings_dark.png', 'assets'),
