@@ -8,6 +8,11 @@ xPaste is a simple application that allows you to bypass paste-blocking websites
 
 It is written in Python, using the Tkinter standard library for the GUI, and the [keyboard](https://github.com/boppreh/keyboard "https://github.com/boppreh/keyboard") module for the typing.
 
+## Installation
+
+- You can download the latest release from [here](https://github.com/diegojgb/xPaste/releases/latest "https://github.com/diegojgb/xPaste/releases/latest")
+- It is a standalone executable, just one file, that's it. It stores its settings in a 'config.ini' file within the same directory.
+
 ## Usage
 1. &nbsp;Open xPaste and make sure it's turned on.  
 2. &nbsp;Copy the text you want to paste.  
